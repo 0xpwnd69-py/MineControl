@@ -24,7 +24,7 @@ Control a Minecraft bot entirely from your browser — no terminal commands need
 **Requirements:** [Node.js](https://nodejs.org) v18 or higher
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+git clone https://github.com/0xpwnd69-py/MineControl
 cd mineflayer-bot
 npm install
 npm start
