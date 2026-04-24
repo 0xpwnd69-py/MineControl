@@ -1,1 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mineflayer Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #10141a;
+    --bg3: #151b24;
+    --border: #1e2a38;
+    --accent: #00d4aa;
+    --accent2: #0088ff;
+    --warn: #ffaa00;
+    --danger: #ff4455;
+    --text: #c8d8e8;
+    --text-dim: #5a7080;
+    --text-bright: #eaf4ff;
+    --chat: #a8c8ff;
+    --green: #00ff88;
+    --radius: 8px;
+  }
 
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Topbar ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 20px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #topbar .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #topbar .logo svg { width: 22px; height: 22px; }
+
+  #bot-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  #status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    transition: background 0.3s;
+    box-shadow: 0 0 6px var(--danger);
+  }
+
+  #status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  .stat-chip {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  .stat-chip span { color: var(--text); }
+
+  /* ── Tabs ── */
+  #tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 20px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Main layout ── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: 260px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  .sidebar-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-section h4 {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  /* ── Connect form ── */
+  .field { margin-bottom: 8px; }
+  .field label { display: block; font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
+  .field input, .field select {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 5px 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select option { background: var(--bg2); }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { background: #00ffcc; }
+  .btn.danger { border-color: var(--danger); color: var(--danger); }
+  .btn.danger:hover { background: var(--danger); color: #fff; }
+  .btn.warn { border-color: var(--warn); color: var(--warn); }
+  .btn.small { padding: 3px 8px; font-size: 11px; }
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ── Stats ── */
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .stat-row .key { color: var(--text-dim); }
+  .stat-row .val { color: var(--text-bright); font-weight: 500; }
+
+  .health-bar, .food-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .health-bar-fill { height: 100%; background: var(--danger); border-radius: 2px; transition: width 0.3s; }
+  .food-bar-fill { height: 100%; background: var(--warn); border-radius: 2px; transition: width 0.3s; }
+
+  /* ── Movement pad ── */
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 36px);
+    grid-template-rows: repeat(3, 36px);
+    gap: 3px;
+    margin: 0 auto;
+    width: fit-content;
+  }
+  .dpad-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s;
+    user-select: none;
+  }
+  .dpad-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+  .dpad-btn:active { transform: scale(0.9); }
+  .dpad-center { background: var(--bg); }
+
+  /* ── Content area ── */
+  #content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+    flex-direction: column;
+  }
+  .panel.active { display: flex; }
+
+  /* ── Console Panel ── */
+  #console-output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .log-line { display: flex; gap: 10px; align-items: flex-start; }
+  .log-time { color: var(--text-dim); flex-shrink: 0; font-size: 11px; }
+  .log-source {
+    flex-shrink: 0;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--bg3);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    min-width: 50px;
+    text-align: center;
+  }
+  .log-msg { flex: 1; word-break: break-all; }
+  .log-info .log-msg { color: var(--text); }
+  .log-chat .log-msg { color: var(--chat); }
+  .log-warn .log-msg { color: var(--warn); }
+  .log-error .log-msg { color: var(--danger); }
+
+  #console-input-row {
+    display: flex;
+    gap: 6px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    flex-shrink: 0;
+  }
+
+  #chat-input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    outline: none;
+  }
+  #chat-input:focus { border-color: var(--accent); }
+  #chat-input::placeholder { color: var(--text-dim); }
+
+  /* ── Eval Panel ── */
+  #eval-panel {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    padding: 16px;
+    gap: 12px;
+  }
+  #eval-panel.active { display: flex; }
+
+  #eval-panel .CodeMirror {
+    height: 200px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+
+  #eval-output {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    overflow-y: auto;
+    font-size: 12px;
+    color: var(--text);
+    white-space: pre-wrap;
+    min-height: 80px;
+  }
+
+  /* ── Plugins Panel ── */
+  #plugins-panel {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+  #plugins-panel.active { display: flex; }
+
+  #plugins-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  #plugin-list {
+    width: 220px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  .plugin-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.1s;
+  }
+  .plugin-item:hover { background: var(--bg3); }
+  .plugin-item.selected { background: var(--bg3); border-left: 2px solid var(--accent); }
+
+  .plugin-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .plugin-dot.loaded { background: var(--green); box-shadow: 0 0 4px var(--green); }
+  .plugin-dot.error { background: var(--danger); }
+
+  .plugin-name { flex: 1; font-size: 12px; }
+  .plugin-del { font-size: 11px; color: var(--text-dim); cursor: pointer; padding: 2px 4px; }
+  .plugin-del:hover { color: var(--danger); }
+
+  #plugin-editor-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 16px;
+    gap: 10px;
+  }
+
+  #plugin-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  #plugin-name-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 5px 10px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    width: 180px;
+  }
+  #plugin-name-input:focus { border-color: var(--accent); }
+
+  #plugin-editor-area .CodeMirror {
+    flex: 1;
+    height: 100%;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* ── Inventory Panel ── */
+  #inventory-panel {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    flex-direction: column;
+  }
+  #inventory-panel.active { display: flex; }
+
+  #inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 80px);
+    gap: 6px;
+  }
+
+  .inv-slot {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 6px;
+    text-align: center;
+    font-size: 11px;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+  .inv-slot .item-count { color: var(--accent); font-weight: 700; font-size: 13px; }
+  .inv-slot .item-name { color: var(--text-dim); line-height: 1.2; word-break: break-word; }
+  .inv-slot.empty { opacity: 0.3; }
+
+  /* ── Scrollbars ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  /* ── Nav goto ── */
+  .goto-row { display: flex; gap: 4px; }
+  .goto-row input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    outline: none;
+    width: 48px;
+  }
+  .goto-row input:focus { border-color: var(--accent2); }
+  .goto-label { font-size: 10px; color: var(--text-dim); text-align: center; margin-bottom: 2px; }
+
+  /* ── WS indicator ── */
+  #ws-status {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex; align-items: center; gap: 5px;
+  }
+  #ws-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--danger);
+  }
+  #ws-dot.ok { background: var(--green); }
+
+  .empty-state {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 12px; flex-direction: column; gap: 8px;
+  }
+  .empty-state svg { opacity: 0.3; }
+
+  .new-plugin-btn {
+    padding: 12px 14px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    display: flex; align-items: center; gap: 6px;
+    border-top: 1px solid var(--border);
+    transition: color 0.15s;
+  }
+  .new-plugin-btn:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div id="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    MineControl
+  </div>
+  <div id="bot-indicator">
+    <div id="status-dot"></div>
+    <span id="bot-name">Offline</span>
+  </div>
+  <div class="stat-chip" id="chip-hp" style="display:none">❤️ <span id="hp-val">--</span></div>
+  <div class="stat-chip" id="chip-food" style="display:none">🍖 <span id="food-val">--</span></div>
+  <div class="stat-chip" id="chip-pos" style="display:none">📍 <span id="pos-val">--</span></div>
+  <div id="ws-status"><div id="ws-dot"></div> ws</div>
+</div>
+
+<!-- Tabs -->
+<div id="tabs">
+  <div class="tab active" data-tab="console">Console</div>
+  <div class="tab" data-tab="eval">JS Eval</div>
+  <div class="tab" data-tab="plugins">Plugins</div>
+  <div class="tab" data-tab="inventory">Inventory</div>
+  <div class="tab" data-tab="worldview">🌍 World View</div>
+</div>
+
+<!-- Main -->
+<div id="main">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+
+    <!-- Connect -->
+    <div class="sidebar-section">
+      <h4>Connect</h4>
+      <div class="field"><label>Host</label><input id="s-host" value="localhost" placeholder="mc.server.com"></div>
+      <div class="field"><label>Port</label><input id="s-port" value="25565" type="number"></div>
+      <div class="field"><label>Username</label><input id="s-user" value="MineBot" placeholder="Steve"></div>
+      <div class="field"><label>Password (optional)</label><input id="s-pass" type="password" placeholder="Leave blank for offline"></div>
+      <div class="field">
+        <label>Auth</label>
+        <select id="s-auth">
+          <option value="offline">Offline</option>
+          <option value="microsoft">Microsoft</option>
+          <option value="mojang">Mojang</option>
+        </select>
+      </div>
+      <div class="field"><label>Version (optional)</label><input id="s-ver" placeholder="e.g. 1.20.1"></div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="connectBot()">▶ Connect</button>
+        <button class="btn danger" onclick="disconnectBot()">■ Disconnect</button>
+      </div>
+    </div>
+
+    <!-- Bot Stats -->
+    <div class="sidebar-section" id="stats-section" style="display:none">
+      <h4>Stats</h4>
+      <div class="stat-row"><span class="key">Health</span><span class="val" id="s-health">--</span></div>
+      <div class="health-bar"><div class="health-bar-fill" id="health-fill" style="width:0%"></div></div>
+      <div class="stat-row"><span class="key">Food</span><span class="val" id="s-food">--</span></div>
+      <div class="food-bar"><div class="food-bar-fill" id="food-fill" style="width:0%"></div></div>
+      <div class="stat-row"><span class="key">Gamemode</span><span class="val" id="s-gm">--</span></div>
+      <div class="stat-row"><span class="key">Dimension</span><span class="val" id="s-dim">--</span></div>
+      <div class="stat-row"><span class="key">Ping</span><span class="val" id="s-ping">--</span></div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="sidebar-section">
+      <h4>Navigation</h4>
+      <div class="dpad">
+        <div></div>
+        <div class="dpad-btn" title="Forward (North)" onclick="move('n')">↑</div>
+        <div></div>
+        <div class="dpad-btn" title="Left (West)" onclick="move('w')">←</div>
+        <div class="dpad-btn dpad-center" title="Stop" onclick="stopBot()">⬜</div>
+        <div class="dpad-btn" title="Right (East)" onclick="move('e')">→</div>
+        <div></div>
+        <div class="dpad-btn" title="Back (South)" onclick="move('s')">↓</div>
+        <div></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="goto-label">Goto X / Y / Z</div>
+        <div class="goto-row">
+          <input id="goto-x" placeholder="X" type="number">
+          <input id="goto-y" placeholder="Y" type="number">
+          <input id="goto-z" placeholder="Z" type="number">
+          <button class="btn small" onclick="gotoPos()">Go</button>
+        </div>
+      </div>
+
+      <div style="margin-top:8px" class="btn-row">
+        <button class="btn small warn" onclick="stopBot()">⏹ Stop</button>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="sidebar-section">
+      <h4>Quick Actions</h4>
+      <div class="btn-row" style="flex-direction:column;align-items:stretch;">
+        <button class="btn small" onclick="evalQuick('bot.setControlState(\'jump\', true); setTimeout(()=>bot.setControlState(\'jump\', false), 100)')">🦘 Jump</button>
+        <button class="btn small" onclick="evalQuick('bot.chat(\'/gamemode creative\')')">🎮 Creative</button>
+        <button class="btn small" onclick="evalQuick('bot.chat(\'/gamemode survival\')')">⚔️ Survival</button>
+        <button class="btn small" onclick="evalQuick('bot.chat(\'/kill\')')">💀 /kill</button>
+        <button class="btn small" onclick="evalQuick('bot.chat(\'/home\')')">🏠 /home</button>
+        <button class="btn small" onclick="evalQuick('bot.dropAllItems()')">🗑️ Drop All</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- Console Panel -->
+    <div class="panel active" id="panel-console">
+      <div id="console-output"></div>
+      <div id="console-input-row">
+        <input id="chat-input" placeholder="Send chat message..." onkeydown="chatKeydown(event)">
+        <button class="btn primary" onclick="sendChat()">Send</button>
+        <button class="btn small" onclick="clearLogs()">Clear</button>
+      </div>
+    </div>
+
+    <!-- JS Eval Panel -->
+    <div class="panel" id="panel-eval">
+      <div style="padding:16px;display:flex;flex-direction:column;gap:12px;flex:1;overflow:hidden;">
+        <div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">Execute JavaScript — <code>bot</code>, <code>pathfinder</code>, <code>goals</code> are available</div>
+          <textarea id="eval-code-raw" style="display:none"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" onclick="runEval()">▶ Run</button>
+          <button class="btn small" onclick="clearEvalOutput()">Clear output</button>
+          <button class="btn small" onclick="loadEvalExample('look')">Example: Look</button>
+          <button class="btn small" onclick="loadEvalExample('dig')">Example: Dig</button>
+          <button class="btn small" onclick="loadEvalExample('follow')">Example: Follow</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);">Output:</div>
+        <div id="eval-output">// Output will appear here...</div>
+      </div>
+    </div>
+
+    <!-- Plugins Panel -->
+    <div class="panel" id="panel-plugins">
+      <div id="plugins-layout">
+        <div id="plugin-list">
+          <div id="plugin-items"></div>
+          <div class="new-plugin-btn" onclick="newPlugin()">+ New Plugin</div>
+        </div>
+        <div id="plugin-editor-area">
+          <div class="empty-state" id="plugin-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            Select or create a plugin
+          </div>
+          <div id="plugin-editor-active" style="display:none;flex-direction:column;flex:1;overflow:hidden;gap:10px">
+            <div id="plugin-toolbar">
+              <input id="plugin-name-input" placeholder="plugin-name" maxlength="40">
+              <button class="btn primary small" onclick="savePlugin()">💾 Save & Reload</button>
+              <button class="btn small" onclick="reloadPlugin()">🔄 Reload</button>
+            </div>
+            <textarea id="plugin-code-raw" style="display:none"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Panel -->
+    <div class="panel" id="panel-inventory">
+      <div style="padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:12px;color:var(--text-dim)">Bot Inventory</span>
+          <button class="btn small" onclick="refreshInventory()">🔄 Refresh</button>
+        </div>
+        <div id="inventory-grid"></div>
+      </div>
+    </div>
+
+
+    <!-- World View Panel -->
+    <div class="panel" id="panel-worldview">
+      <div id="viewer-wrapper" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <div id="viewer-offline" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-dim);">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:0.3">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <span style="font-size:13px">Connect the bot to start the world viewer</span>
+          <span style="font-size:11px;color:var(--text-dim)">Viewer runs on port <span id="viewer-port-label">3001</span></span>
+        </div>
+        <div id="viewer-online" style="display:none;flex:1;flex-direction:column;">
+          <div style="padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim)">
+              <div id="viewer-live-dot" style="width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green)"></div>
+              Live on port <span id="viewer-port-label2">3001</span>
+            </div>
+            <a id="viewer-open-link" href="#" target="_blank" class="btn small" style="margin-left:auto">↗ Open in new tab</a>
+            <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:5px;cursor:pointer">
+              <input type="checkbox" id="viewer-first-person" onchange="toggleViewerPerspective()"> First person
+            </label>
+          </div>
+          <iframe id="viewer-iframe" style="flex:1;border:none;background:#000" src="" allow="fullscreen"></iframe>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── WS ────────────────────────────────────────────────────────────────────────
+let ws, reconnectTimer;
+const wsUrl = `ws://${location.host}`;
+
+function connectWS() {
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    document.getElementById('ws-dot').classList.add('ok');
+    clearTimeout(reconnectTimer);
+  };
+
+  ws.onclose = () => {
+    document.getElementById('ws-dot').classList.remove('ok');
+    reconnectTimer = setTimeout(connectWS, 2000);
+  };
+
+  ws.onmessage = e => {
+    const { type, data } = JSON.parse(e.data);
+    if (type === 'init') {
+      data.logs?.forEach(appendLog);
+      if (data.status) updateStatus(data.status);
+    } else if (type === 'log') {
+      appendLog(data);
+    } else if (type === 'bot_status') {
+      updateStatus(data);
+    } else if (type === 'chat') {
+      // already logged
+    } else if (type === 'plugin_update') {
+      refreshPluginList();
+    } else if (type === 'viewer_status') {
+      updateViewerUI(data.active, data.port);
+    }
+  };
+}
+
+connectWS();
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById(`panel-${t.dataset.tab}`).classList.add('active');
+    if (t.dataset.tab === 'plugins') refreshPluginList();
+    if (t.dataset.tab === 'inventory') refreshInventory();
+    if (t.dataset.tab === 'worldview') { fetch('/api/viewer').then(r=>r.json()).then(d=>updateViewerUI(d.active, d.port)); }
+  });
+});
+
+// ── Logs ──────────────────────────────────────────────────────────────────────
+const output = document.getElementById('console-output');
+let autoScroll = true;
+
+output.addEventListener('scroll', () => {
+  autoScroll = (output.scrollTop + output.clientHeight) >= (output.scrollHeight - 40);
+});
+
+function appendLog(entry) {
+  const d = document.createElement('div');
+  d.className = `log-line log-${entry.level}`;
+  const t = new Date(entry.ts).toLocaleTimeString('en', { hour12: false });
+  d.innerHTML = `
+    <span class="log-time">${t}</span>
+    <span class="log-source">${entry.source}</span>
+    <span class="log-msg">${escHtml(entry.msg)}</span>
+  `;
+  output.appendChild(d);
+  if (autoScroll) output.scrollTop = output.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function clearLogs() { output.innerHTML = ''; }
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function updateStatus(s) {
+  const dot = document.getElementById('status-dot');
+  const name = document.getElementById('bot-name');
+  const stats = document.getElementById('stats-section');
+
+  if (s.online) {
+    dot.classList.add('online');
+    name.textContent = s.username || 'Online';
+    stats.style.display = '';
+
+    const hp = s.health ?? 0, food = s.food ?? 0;
+    document.getElementById('s-health').textContent = hp.toFixed(1);
+    document.getElementById('s-food').textContent = food.toFixed(1);
+    document.getElementById('s-gm').textContent = s.gameMode ?? '--';
+    document.getElementById('s-dim').textContent = s.dimension ?? '--';
+    document.getElementById('s-ping').textContent = (s.ping ?? 0) + 'ms';
+    document.getElementById('health-fill').style.width = (hp / 20 * 100) + '%';
+    document.getElementById('food-fill').style.width = (food / 20 * 100) + '%';
+
+    document.getElementById('chip-hp').style.display = '';
+    document.getElementById('chip-food').style.display = '';
+    document.getElementById('chip-pos').style.display = '';
+    document.getElementById('hp-val').textContent = hp.toFixed(1);
+    document.getElementById('food-val').textContent = food.toFixed(1);
+    if (s.position) {
+      const p = s.position;
+      document.getElementById('pos-val').textContent =
+        `${Math.floor(p.x)}, ${Math.floor(p.y)}, ${Math.floor(p.z)}`;
+    }
+  } else {
+    dot.classList.remove('online');
+    name.textContent = 'Offline';
+    stats.style.display = 'none';
+    ['chip-hp','chip-food','chip-pos'].forEach(id => document.getElementById(id).style.display = 'none');
+  }
+}
+
+// ── Bot Controls ──────────────────────────────────────────────────────────────
+async function connectBot() {
+  const config = {
+    host: document.getElementById('s-host').value,
+    port: document.getElementById('s-port').value,
+    username: document.getElementById('s-user').value,
+    password: document.getElementById('s-pass').value,
+    auth: document.getElementById('s-auth').value,
+    version: document.getElementById('s-ver').value || undefined,
+  };
+  await fetch('/api/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(config) });
+}
+
+async function disconnectBot() {
+  await fetch('/api/disconnect', { method: 'POST' });
+}
+
+function sendChat() {
+  const inp = document.getElementById('chat-input');
+  if (!inp.value.trim()) return;
+  fetch('/api/chat', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ message: inp.value }) });
+  inp.value = '';
+}
+
+function chatKeydown(e) { if (e.key === 'Enter') sendChat(); }
+
+function move(dir) {
+  const scripts = {
+    n: 'bot.setControlState("forward", true); setTimeout(()=>bot.setControlState("forward",false), 500)',
+    s: 'bot.setControlState("back", true); setTimeout(()=>bot.setControlState("back",false), 500)',
+    w: 'bot.setControlState("left", true); setTimeout(()=>bot.setControlState("left",false), 500)',
+    e: 'bot.setControlState("right", true); setTimeout(()=>bot.setControlState("right",false), 500)',
+  };
+  evalQuick(scripts[dir]);
+}
+
+function stopBot() {
+  fetch('/api/stop', { method: 'POST' });
+}
+
+function gotoPos() {
+  const x = parseFloat(document.getElementById('goto-x').value);
+  const y = parseFloat(document.getElementById('goto-y').value);
+  const z = parseFloat(document.getElementById('goto-z').value);
+  if (isNaN(x) || isNaN(y) || isNaN(z)) return alert('Enter valid X Y Z');
+  fetch('/api/move', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ x, y, z }) });
+}
+
+// ── JS Eval ───────────────────────────────────────────────────────────────────
+let evalEditor;
+
+window.addEventListener('load', () => {
+  evalEditor = CodeMirror.fromTextArea(document.getElementById('eval-code-raw'), {
+    mode: 'javascript',
+    theme: 'dracula',
+    lineNumbers: true,
+    autoCloseBrackets: true,
+    matchBrackets: true,
+    indentUnit: 2,
+    tabSize: 2,
+  });
+  evalEditor.setValue('// Bot is available as `bot`\n// Example:\nawait bot.chat("Hello from eval!");\nreturn `Health: ${bot.health}`;');
+
+  pluginEditor = CodeMirror.fromTextArea(document.getElementById('plugin-code-raw'), {
+    mode: 'javascript',
+    theme: 'dracula',
+    lineNumbers: true,
+    autoCloseBrackets: true,
+    matchBrackets: true,
+    indentUnit: 2,
+    tabSize: 2,
+  });
+});
+
+async function runEval() {
+  const code = evalEditor.getValue();
+  const out = document.getElementById('eval-output');
+  out.textContent = '// Running...';
+  const res = await fetch('/api/command', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ command: code }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    out.textContent = data.result || '// (no return value)';
+    out.style.color = 'var(--accent)';
+  } else {
+    out.textContent = '// Error: ' + data.error;
+    out.style.color = 'var(--danger)';
+  }
+}
+
+function clearEvalOutput() {
+  const out = document.getElementById('eval-output');
+  out.textContent = '// Output will appear here...';
+  out.style.color = 'var(--text)';
+}
+
+function evalQuick(code) {
+  fetch('/api/command', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ command: code }) });
+}
+
+const evalExamples = {
+  look: `// Make bot look at nearest player\nconst player = Object.values(bot.players).find(p => p.entity && p.username !== bot.username);\nif (player) {\n  await bot.lookAt(player.entity.position.offset(0, 1.6, 0));\n  return \`Looking at \${player.username}\`;\n} else return 'No players nearby';`,
+  dig: `// Dig the block in front of the bot\nconst pos = bot.entity.position.offset(0, 0, 0);\nconst front = bot.blockAt(bot.entity.position.offset(Math.sin(bot.entity.yaw), 0, Math.cos(bot.entity.yaw)).floored());\nif (front && front.name !== 'air') {\n  await bot.dig(front);\n  return \`Dug \${front.name}\`;\n} else return 'Nothing to dig in front';`,
+  follow: `// Follow nearest player\nconst { GoalFollow } = goals;\nconst player = Object.values(bot.players).find(p => p.entity && p.username !== bot.username);\nif (player && player.entity) {\n  bot.pathfinder.setGoal(new GoalFollow(player.entity, 2), true);\n  return \`Following \${player.username}\`;\n} else return 'No players to follow';`,
+};
+
+function loadEvalExample(key) {
+  evalEditor.setValue(evalExamples[key] || '');
+}
+
+// ── Plugins ───────────────────────────────────────────────────────────────────
+let pluginEditor;
+let selectedPlugin = null;
+
+async function refreshPluginList() {
+  const res = await fetch('/api/plugins');
+  const plugins = await res.json();
+  const list = document.getElementById('plugin-items');
+  list.innerHTML = '';
+  plugins.forEach(p => {
+    const item = document.createElement('div');
+    item.className = `plugin-item${selectedPlugin === p.name ? ' selected' : ''}`;
+    item.dataset.name = p.name;
+    item.innerHTML = `
+      <div class="plugin-dot ${p.loaded ? 'loaded' : ''}"></div>
+      <span class="plugin-name">${p.name}</span>
+      <span class="plugin-del" onclick="deletePlugin('${p.name}',event)" title="Delete">✕</span>
+    `;
+    item.addEventListener('click', () => openPlugin(p));
+    list.appendChild(item);
+  });
+}
+
+function openPlugin(p) {
+  selectedPlugin = p.name;
+  document.querySelectorAll('.plugin-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.name === p.name);
+  });
+  document.getElementById('plugin-empty').style.display = 'none';
+  const active = document.getElementById('plugin-editor-active');
+  active.style.display = 'flex';
+  document.getElementById('plugin-name-input').value = p.name;
+  pluginEditor.setValue(p.code);
+  setTimeout(() => pluginEditor.refresh(), 10);
+}
+
+function newPlugin() {
+  const name = 'my-plugin-' + Date.now().toString(36);
+  const template = `/**
+ * Plugin: ${name}
+ * 
+ * Available: bot, log(level, msg, source), broadcast(type, data)
+ */
+
+let listeners = {};
+
+module.exports = {
+  load(bot, log, broadcast) {
+    log('info', '${name} loaded!', '${name}');
+    
+    listeners.chat = (username, message) => {
+      if (username === bot.username) return;
+      // Handle chat messages here
+    };
+    
+    bot.on('chat', listeners.chat);
+  },
+  
+  unload(bot) {
+    if (listeners.chat) bot.removeListener('chat', listeners.chat);
+  }
+};
+`;
+  openPlugin({ name, code: template, loaded: false });
+  document.getElementById('plugin-name-input').value = name;
+}
+
+async function savePlugin() {
+  const name = document.getElementById('plugin-name-input').value.trim();
+  const code = pluginEditor.getValue();
+  if (!name) return alert('Enter a plugin name');
+  const res = await fetch('/api/plugins/save', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name, code }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    selectedPlugin = data.name;
+    setTimeout(refreshPluginList, 300);
+  }
+}
+
+async function reloadPlugin() {
+  if (!selectedPlugin) return;
+  await fetch(`/api/plugins/${selectedPlugin}/reload`, { method: 'POST' });
+  refreshPluginList();
+}
+
+async function deletePlugin(name, e) {
+  e.stopPropagation();
+  if (!confirm(`Delete plugin "${name}"?`)) return;
+  await fetch(`/api/plugins/${name}`, { method: 'DELETE' });
+  if (selectedPlugin === name) {
+    selectedPlugin = null;
+    document.getElementById('plugin-empty').style.display = 'flex';
+    document.getElementById('plugin-editor-active').style.display = 'none';
+  }
+  refreshPluginList();
+}
+
+// ── Inventory ─────────────────────────────────────────────────────────────────
+async function refreshInventory() {
+  const res = await fetch('/api/status');
+  const s = await res.json();
+  const grid = document.getElementById('inventory-grid');
+  grid.innerHTML = '';
+  const items = s.inventory || [];
+  if (!items.length) {
+    grid.innerHTML = '<div style="color:var(--text-dim);font-size:12px">Empty or bot offline</div>';
+    return;
+  }
+  items.forEach(item => {
+    const slot = document.createElement('div');
+    slot.className = 'inv-slot';
+    slot.innerHTML = `<div class="item-count">${item.count}</div><div class="item-name">${item.name}</div>`;
+    grid.appendChild(slot);
+  });
+}
+
+refreshPluginList();
+
+// ── World Viewer ──────────────────────────────────────────────────────────────
+let viewerPort = null;
+
+function updateViewerUI(active, port) {
+  if (port) {
+    viewerPort = port;
+    document.getElementById('viewer-port-label').textContent = port;
+    document.getElementById('viewer-port-label2').textContent = port;
+    const url = `http://${location.hostname}:${port}`;
+    document.getElementById('viewer-open-link').href = url;
+  }
+  document.getElementById('viewer-offline').style.display = active ? 'none' : 'flex';
+  const online = document.getElementById('viewer-online');
+  online.style.display = active ? 'flex' : 'none';
+  if (active && viewerPort) {
+    const iframe = document.getElementById('viewer-iframe');
+    const url = `http://${location.hostname}:${viewerPort}`;
+    if (iframe.src !== url) iframe.src = url;
+  }
+}
+
+function toggleViewerPerspective() {
+  // Reload iframe to toggle perspective; prismarine-viewer supports ?firstperson=1
+  const fp = document.getElementById('viewer-first-person').checked;
+  const url = `http://${location.hostname}:${viewerPort}${fp ? '?firstperson=1' : ''}`;
+  document.getElementById('viewer-iframe').src = url;
+  document.getElementById('viewer-open-link').href = url;
+}
+
+// Fetch initial viewer status
+fetch('/api/viewer').then(r => r.json()).then(d => updateViewerUI(d.active, d.port));
+
+// Handle viewer_status WS events (add to existing ws.onmessage)
+const _origOnMessage = ws.onmessage;
+</script>
+</body>
+</html>
