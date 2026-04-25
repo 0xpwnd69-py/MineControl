@@ -2,9 +2,9 @@
 const { Client, GatewayIntentBits, WebhookClient } = require('discord.js');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const DISCORD_TOKEN      = 'BOT_TOKEN_HERE';
-const DISCORD_CHANNEL_ID = 'DISCORD_CHANNEL_ID_HERE';
-const DISCORD_WEBHOOK_URL = ''; // optional but recommended for nicer look
+const DISCORD_TOKEN       = process.env.DISCORD_TOKEN;
+const DISCORD_CHANNEL_ID  = process.env.DISCORD_CHANNEL_ID;
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
 
 // Known 8b8t ranks — mineflayer gives these as the "username"
 // when a ranked player talks, the real name is inside the message
