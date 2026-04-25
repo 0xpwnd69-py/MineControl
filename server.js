@@ -7,6 +7,7 @@ const fs = require('fs');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const chokidar = require('chokidar');
 const { mineflayer: mineflayerViewer } = require('prismarine-viewer');
+const { initDiscord, sendToDiscord, setBot } = require('./discord-bridge');
 
 const app = express();
 const server = http.createServer(app);
@@ -27,7 +28,6 @@ let loadedPlugins = {};
 let pluginWatcher = null;
 let viewerActive = false;
 let viewerStarted = false;
-let lastSpawnTime = 0;  
 
 // ─── Broadcast to all WS clients ─────────────────────────────────────────────
 function broadcast(type, data) {
@@ -121,6 +121,7 @@ function unloadPlugin(name) {
 
 function loadAllPlugins() {
   if (!fs.existsSync(PLUGINS_DIR)) fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+initDiscord(log);
   const files = fs.readdirSync(PLUGINS_DIR).filter(f => f.endsWith('.js'));
   files.forEach(f => loadPlugin(path.join(PLUGINS_DIR, f)));
 }
@@ -171,9 +172,8 @@ function createBot(config) {
     bot.loadPlugin(pathfinder);
 
     bot.once('spawn', () => {
-      lastSpawnTime = Date.now();
-
       log('info', `Bot spawned as ${bot.username}`, 'bot');
+      setBot(bot);
       broadcast('bot_status', getBotStatus());
 
       const mcData = require('minecraft-data')(bot.version);
@@ -213,6 +213,7 @@ function createBot(config) {
       if (username === bot.username) return;
       log('chat', `<${username}> ${message}`, 'chat');
       broadcast('chat', { username, message });
+      sendToDiscord(username, message);
     });
 
     bot.on('health', () => {
@@ -224,27 +225,11 @@ function createBot(config) {
     });
 
     bot.on('kicked', (reason) => {
-      const now = Date.now();
-
-      // Ignore fake kicks during server transfer (like 8b8t login → main)
-      if (now - lastSpawnTime < 5000) {
-        log('info', `Ignored fake kick during transfer: ${reason}`, 'bot');
-        return;
-      }
-
       log('warn', `Bot was kicked: ${reason}`, 'bot');
       broadcast('bot_status', { online: false, kickReason: reason });
     });
 
     bot.on('end', (reason) => {
-      const now = Date.now();
-
-      // Ignore disconnect during server switching
-      if (now - lastSpawnTime < 5000) {
-        log('info', `Ignored disconnect during transfer: ${reason}`, 'bot');
-        return;
-      }
-
       log('warn', `Bot disconnected: ${reason}`, 'bot');
       viewerActive = false;
       broadcast('bot_status', { online: false });
@@ -327,6 +312,7 @@ app.get('/api/logs', (req, res) => {
 // Plugin API
 app.get('/api/plugins', (req, res) => {
   if (!fs.existsSync(PLUGINS_DIR)) fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+initDiscord(log);
   const files = fs.readdirSync(PLUGINS_DIR).filter(f => f.endsWith('.js'));
   const plugins = files.map(f => ({
     name: path.basename(f, '.js'),
@@ -400,6 +386,7 @@ wss.on('connection', (ws) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 if (!fs.existsSync(PLUGINS_DIR)) fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+initDiscord(log);
 loadAllPlugins();
 watchPlugins();
 
