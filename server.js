@@ -300,7 +300,7 @@ app.post('/api/command', (req, res) => {
     res.json({ ok: false, error: err.message });
   }
 });
-
+app.get('/ping', (req, res) => res.send('pong'));
 app.get('/api/status', (req, res) => {
   res.json(getBotStatus());
 });
