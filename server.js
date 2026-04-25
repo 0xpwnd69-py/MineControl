@@ -13,6 +13,30 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// ─── Basic Auth ───────────────────────────────────────────────────────────────
+const PANEL_PASSWORD = process.env.PANEL_PASSWORD || 'changeme';
+
+app.use((req, res, next) => {
+  // Allow ping through without auth
+  if (req.path === '/ping') return next();
+
+  const auth = req.headers['authorization'];
+  if (!auth) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="MineControl"');
+    return res.status(401).send('Authentication required');
+  }
+
+  const [, encoded] = auth.split(' ');
+  const [, password] = Buffer.from(encoded, 'base64').toString().split(':');
+
+  if (password !== PANEL_PASSWORD) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="MineControl"');
+    return res.status(401).send('Wrong password');
+  }
+
+  next();
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
