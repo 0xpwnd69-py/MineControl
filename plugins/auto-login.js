@@ -10,7 +10,7 @@
  */
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-const PASSWORD = 'your_password_here';   // ← change this
+const PASSWORD = process.env.MC_PASSWORD || 'your_password_here';   // ← change this
 const REGISTER_PASSWORD = PASSWORD;      // used if the server says /register first
 const LOGIN_DELAY_MS = 1500;             // wait a bit after spawn before logging in
 // ─────────────────────────────────────────────────────────────────────────────
