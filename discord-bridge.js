@@ -1,12 +1,13 @@
+
 const { Client, GatewayIntentBits, WebhookClient } = require('discord.js');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const DISCORD_TOKEN      = 'YOUR_BOT_TOKEN';
-const DISCORD_CHANNEL_ID = 'YOUR_CHANNEL_ID';
+const DISCORD_TOKEN      = 'BOT_TOKEN';
+const DISCORD_CHANNEL_ID = 'CHANNEL_ID';
 const DISCORD_WEBHOOK_URL = ''; // optional but recommended for nicer look
 
-// Known 8b8t ranks — if the "username" from mineflayer matches one of these,
-// the real username is inside the message: "Ultra: <STONE BRICKS> hello"
+// Known 8b8t ranks — mineflayer gives these as the "username"
+// when a ranked player talks, the real name is inside the message
 const RANKS = ['Ultra', 'Pro+', 'Basic', 'SE', 'Mini', 'Pro', 'VIP', 'MVP', 'Elite', 'Legend', 'God', 'Admin', 'Owner', 'Builder', 'Helper', 'Mod', 'Dev', 'Youtuber', 'Streamer', 'Sponsor', 'Booster', 'Supporter', 'Contributor', 'Member', 'Donor', 'Friend','MOD✔'];
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -16,97 +17,106 @@ let webhook        = null;
 let _bot           = null;
 let _log           = null;
 
-// ─── Parse 8b8t chat format ───────────────────────────────────────────────────
-/**
- * Mineflayer gives us: username, message
- *
- * Case 1 — normal player (no rank):
- *   username = "HighwayCleaner"
- *   message  = "not"
- *   → { rank: null, player: "HighwayCleaner", text: "not" }
- *
- * Case 2 — ranked player:
- *   username = "Ultra"          ← mineflayer thinks this is the username
- *   message  = "<STONE BRICKS> destroy it man"
- *   → { rank: "Ultra", player: "STONE BRICKS", text: "destroy it man" }
- *
- * Case 3 — server message (username = "8b8t" or similar non-player name):
- *   → { rank: null, player: null, text: "..." }  (server = true)
- */
-function parseChat(username, message) {
-  // Server messages — 8b8t announces etc
-  const serverNames = ['8b8t', 'Server', 'SERVER', ''];
-  if (serverNames.includes(username)) {
-    return { server: true, rank: null, player: null, text: message };
-  }
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  // Ranked player — username matches a known rank
-  if (RANKS.includes(username)) {
-    // message format: "<PLAYERNAME> actual message"
-    const match = message.match(/^<([^>]+)>\s*(.*)/s);
-    if (match) {
-      return { server: false, rank: username, player: match[1], text: match[2] };
-    }
-    // fallback — couldn't parse player name
-    return { server: false, rank: username, player: '???', text: message };
-  }
-
-  // Normal player — no rank
-  return { server: false, rank: null, player: username, text: message };
-}
-
-// Suppress link embeds by wrapping URLs in < >
+// Wrap URLs so Discord doesn't embed them
 function suppressEmbeds(text) {
   return text.replace(/https?:\/\/[^\s]+/g, url => `<${url}>`);
 }
 
-// ─── Format for Discord ───────────────────────────────────────────────────────
-function formatForDiscord(username, message) {
-  const parsed = parseChat(username, message);
-  const text = suppressEmbeds(parsed.text);
+// Wrap any text in a clean code block
+function box(text) {
+  return `\`\`\`${text}\`\`\``;
+}
 
-  if (parsed.server) {
-    // Server message — monospace box so it stands out
-    return { content: `\`[8b8t] ${text}\``, displayName: '8b8t Server', isServer: true };
+// ─── Parse 8b8t chat ─────────────────────────────────────────────────────────
+
+//
+function parseChat(username, message) {
+  const serverNames = ['8b8t', 'Server', 'SERVER', ''];
+  if (serverNames.includes(username)) {
+    return { type: 'server', rank: null, player: '8b8t', text: message };
+  }
+
+  if (RANKS.includes(username)) {
+    const match = message.match(/^<([^>]+)>\s*(.*)/s);
+    if (match) {
+      return { type: 'player', rank: username, player: match[1], text: match[2] };
+    }
+    return { type: 'player', rank: username, player: '???', text: message };
+  }
+
+  return { type: 'player', rank: null, player: username, text: message };
+}
+
+// ─── Format message ───────────────────────────────────────────────────────────
+//
+//  direction: 'chat' | 'from' (incoming DM) | 'to' (outgoing DM)
+//
+function buildMessage(username, message, direction = 'chat') {
+  const text = suppressEmbeds(message);
+
+  // ── Whisper: someone messaged the bot ──
+  if (direction === 'from') {
+    return {
+      displayName: username,
+      avatarURL: `https://mc-heads.net/avatar/${username}/64`,
+      content: box(`📨 [DM from ${username}] ${text}`),
+    };
+  }
+
+  // ── Whisper: bot messaged someone ──
+  if (direction === 'to') {
+    return {
+      displayName: _bot?.username ?? 'Bot',
+      avatarURL: `https://mc-heads.net/avatar/${_bot?.username ?? 'Steve'}/64`,
+      content: box(`📤 [DM to ${username}] ${text}`),
+    };
+  }
+
+  // ── Normal chat ──
+  const parsed = parseChat(username, message);
+  const cleanText = suppressEmbeds(parsed.text);
+
+  if (parsed.type === 'server') {
+    return {
+      displayName: '8b8t',
+      avatarURL: 'https://i.imgur.com/6TqHIHZ.png',
+      content: box(`[Server] ${cleanText}`),
+    };
   }
 
   if (parsed.rank) {
-    // Ranked player
-    const content = `**[${parsed.rank}]** ${text}`;
-    return { content, displayName: parsed.player, isServer: false };
+    return {
+      displayName: parsed.player,
+      avatarURL: `https://mc-heads.net/avatar/${parsed.player}/64`,
+      content: box(`[${parsed.rank}] ${parsed.player}: ${cleanText}`),
+    };
   }
 
-  // Normal player
-  return { content: text, displayName: parsed.player, isServer: false };
+  return {
+    displayName: parsed.player,
+    avatarURL: `https://mc-heads.net/avatar/${parsed.player}/64`,
+    content: box(`${parsed.player}: ${cleanText}`),
+  };
 }
 
 // ─── Send to Discord ──────────────────────────────────────────────────────────
-function sendToDiscord(username, message) {
+function sendToDiscord(username, message, direction = 'chat') {
   if (!discordChannel) return;
 
-  const { content, displayName, isServer } = formatForDiscord(username, message);
+  const { displayName, avatarURL, content } = buildMessage(username, message, direction);
 
   try {
     if (webhook) {
       webhook.send({
         content,
-        username: isServer ? '8b8t Server' : displayName,
-        avatarURL: isServer
-          ? 'https://i.imgur.com/6TqHIHZ.png' // generic server icon
-          : `https://mc-heads.net/avatar/${displayName}/64`,
-        allowedMentions: { parse: [] }, // never ping anyone from MC chat
+        username: displayName.slice(0, 80),
+        avatarURL,
+        allowedMentions: { parse: [] },
       });
     } else {
-      // Plain bot fallback
-      if (isServer) {
-        discordChannel.send({ content: `\`🖥️ [Server]\` ${content}`, allowedMentions: { parse: [] } });
-      } else {
-        const rankTag = formatForDiscord(username, message).content;
-        discordChannel.send({
-          content: `**${displayName}**: ${rankTag}`,
-          allowedMentions: { parse: [] },
-        });
-      }
+      discordChannel.send({ content, allowedMentions: { parse: [] } });
     }
   } catch (e) {
     _log?.('warn', `Discord send failed: ${e.message}`, 'discord');
