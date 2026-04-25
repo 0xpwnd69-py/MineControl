@@ -741,7 +741,7 @@
 <script>
 // ── WS ────────────────────────────────────────────────────────────────────────
 let ws, reconnectTimer;
-const wsUrl = `ws://${location.host}`;
+const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
 
 function connectWS() {
   ws = new WebSocket(wsUrl);
