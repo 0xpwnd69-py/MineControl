@@ -2,8 +2,8 @@
 const { Client, GatewayIntentBits, WebhookClient } = require('discord.js');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const DISCORD_TOKEN      = 'BOT_TOKEN';
-const DISCORD_CHANNEL_ID = 'CHANNEL_ID';
+const DISCORD_TOKEN      = 'BOT_TOKEN_HERE';
+const DISCORD_CHANNEL_ID = 'DISCORD_CHANNEL_ID_HERE';
 const DISCORD_WEBHOOK_URL = ''; // optional but recommended for nicer look
 
 // Known 8b8t ranks — mineflayer gives these as the "username"
@@ -82,7 +82,7 @@ function buildMessage(username, message, direction = 'chat') {
     return {
       displayName: '8b8t',
       avatarURL: 'https://i.imgur.com/6TqHIHZ.png',
-      content: box(`[Server] ${cleanText}`),
+      content: box(`[🖥️] ${username} ${cleanText}`),
     };
   }
 
@@ -90,14 +90,14 @@ function buildMessage(username, message, direction = 'chat') {
     return {
       displayName: parsed.player,
       avatarURL: `https://mc-heads.net/avatar/${parsed.player}/64`,
-      content: box(`[${parsed.rank}] ${parsed.player}: ${cleanText}`),
+      content: box(`[👤] [${parsed.rank}] ${parsed.player}: ${cleanText}`),
     };
   }
 
   return {
     displayName: parsed.player,
     avatarURL: `https://mc-heads.net/avatar/${parsed.player}/64`,
-    content: box(`${parsed.player}: ${cleanText}`),
+    content: box(`[👤] ${parsed.player}: ${cleanText}`),
   };
 }
 
